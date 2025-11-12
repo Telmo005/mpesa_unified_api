@@ -1,6 +1,23 @@
-certifi==2018.1.18
-chardet==3.0.4
-idna==2.6
-pycryptodome==3.6
-requests==2.18.4
-urllib3==1.22
+# Framework web
+fastapi==0.102.0          # Para criar a API RESTful
+uvicorn[standard]==0.23.2 # Servidor ASGI para FastAPI
+
+# Banco de dados Supabase
+supabase==1.0.1           # Cliente Python Supabase (ou supabase-py)
+python-dotenv==1.0.0      # Para carregar variáveis de ambiente do .env
+
+# Requests e HTTP
+httpx==0.25.0             # Para chamadas HTTP assíncronas ao M-Pesa Sandbox
+
+# Segurança
+pyjwt==2.8.0              # Para autenticação JWT se necessário
+cryptography==41.0.3      # Para encriptação / segurança (recomendado para M-Pesa)
+
+# Logging
+loguru==0.7.0             # Logging estruturado e assíncrono
+
+# Validação de dados
+pydantic==2.5.1           # Schemas para validação de requests/responses
+
+# Async tasks (opcional se usar background tasks)
+asyncio                  # Nativo Python 3.11+ (não precisa instalar)
