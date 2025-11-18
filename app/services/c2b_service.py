@@ -1,6 +1,6 @@
 """
 Serviço de pagamentos C2B M-Pesa Mozambique
-Versão simplificada - sempre usa shortcode do .env
+Versão com logs de diagnóstico completos
 """
 
 import asyncio
@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from app.core.database import get_supabase
-from app.core.config import settings  # ✅ IMPORT DAS CONFIGURAÇÕES
+from app.core.config import settings
 from app.core.mpesa_codes import get_mpesa_code_info
 from app.models.schemas.c2b import C2BPaymentRequest, C2BPaymentResponse
 from app.services.database_service import DatabaseService
@@ -50,6 +50,8 @@ class C2BService:
         unica = third_party_ref not in self._referencias_utilizadas
         if not unica:
             logger.warning(f"🚫 Third_party_reference duplicado: {third_party_ref}")
+        else:
+            logger.debug(f"✅ Third_party_reference é único: {third_party_ref}")
         return unica
 
     def _armazenar_mapeamento_referencia(self, referencia_transacao: str, third_party_ref: str):
@@ -73,17 +75,18 @@ class C2BService:
                 # Caso 2: Cliente forneceu mas é duplicado
                 logger.warning(f"🔄 Referência duplicada, gerando nova: {ref_cliente}")
                 ref_gerada = self._gerar_third_party_reference(dados_pagamento.transaction_reference)
+                logger.info(f"🔄 Duplicado substituído: {ref_cliente} → {ref_gerada}")
                 return ref_gerada
         else:
             # Caso 3: Cliente não forneceu third_party_reference
-            logger.info("🔄 Gerando third_party_reference automaticamente")
+            logger.info("🔄 Cliente não forneceu third_party_reference, gerando automaticamente")
             return self._gerar_third_party_reference(dados_pagamento.transaction_reference)
 
     async def process_payment(self, dados_pagamento: C2BPaymentRequest) -> C2BPaymentResponse:
         """
-        Processa pagamento C2B - versão simplificada
+        Processa pagamento C2B - versão com diagnóstico completo
         """
-        logger.info(f"🔄 Processando C2B: {dados_pagamento.transaction_reference}")
+        logger.info(f"🔄 PROCESSANDO C2B: {dados_pagamento.transaction_reference}")
 
         try:
             # ✅ ESTRATÉGIA HÍBRIDA: Obtém third_party_reference
@@ -101,10 +104,15 @@ class C2BService:
                 "input_ThirdPartyReference": third_party_ref,
                 "input_CustomerMSISDN": dados_pagamento.customer_msisdn,
                 "input_Amount": str(dados_pagamento.amount),
-                "input_ServiceProviderCode": settings.MPESA_SERVICE_PROVIDER_CODE  # ✅ SEMPRE do .env
+                "input_ServiceProviderCode": settings.MPESA_SERVICE_PROVIDER_CODE
             }
 
-            logger.info(f"📤 Enviando C2B - Shortcode: {settings.MPESA_SERVICE_PROVIDER_CODE}")
+            logger.info(f"📤 ENVIANDO C2B PARA MPESA:")
+            logger.info(f"Shortcode: {settings.MPESA_SERVICE_PROVIDER_CODE}")
+            logger.info(f"Transaction Ref: {dados_pagamento.transaction_reference}")
+            logger.info(f"ThirdParty Ref: {third_party_ref}")
+            logger.info(f"Customer: {dados_pagamento.customer_msisdn}")
+            logger.info(f"Amount: {dados_pagamento.amount}")
 
             # ✅ LOG ASSÍNCRONO
             asyncio.create_task(self._registrar_inicio_transacao(dados_pagamento, third_party_ref))
@@ -112,7 +120,9 @@ class C2BService:
             # Executa request M-Pesa
             resultado = self.mpesa_client.execute_request(self.endpoint, payload_mpesa, "c2b")
 
-            logger.info(f"📥 Resposta M-Pesa: {resultado['status_code']}")
+            logger.info(f"📥 RESPOSTA BRUTA DA MPESA:")
+            logger.info(f"Status Code: {resultado.get('status_code')}")
+            logger.info(f"Success Flag: {resultado.get('success')}")
 
             # Processa resposta
             resposta = self._processar_resposta_mpesa(resultado, third_party_ref)
@@ -121,10 +131,14 @@ class C2BService:
             asyncio.create_task(
                 self._registrar_resultado_transacao(dados_pagamento, third_party_ref, resultado, resposta))
 
+            logger.info(f"🎯 RESPOSTA FINAL DO C2B:")
+            logger.info(f"Response Code: {resposta.response_code}")
+            logger.info(f"Response Desc: {resposta.response_description}")
+
             return resposta
 
         except Exception as e:
-            logger.error(f"❌ Erro no processamento C2B: {str(e)}")
+            logger.error(f"❌ ERRO NO PROCESSAMENTO C2B: {str(e)}")
             ref_erro = third_party_ref if 'third_party_ref' in locals() else "ref_erro"
             asyncio.create_task(self._registrar_erro_transacao(dados_pagamento, ref_erro, str(e)))
             
@@ -138,12 +152,52 @@ class C2BService:
 
     def _processar_resposta_mpesa(self, resultado: Dict[str, Any], third_party_ref: str) -> C2BPaymentResponse:
         """
-        Processa resposta M-Pesa
+        Processa resposta M-Pesa com logging detalhado
         """
-        if resultado["success"] and resultado["status_code"] == 200:
-            dados_corpo = resultado["body"]
+        # ✅ LOG DETALHADO DO RESULTADO
+        logger.info(f"🔍 PROCESSANDO RESPOSTA DA MPESA:")
+        logger.info(f"Success flag: {resultado.get('success')}")
+        logger.info(f"Status code: {resultado.get('status_code')}")
+        logger.info(f"Body type: {type(resultado.get('body'))}")
+        logger.info(f"Full result keys: {resultado.keys()}")
+
+        # Verificar se temos um body válido
+        if 'body' not in resultado or resultado['body'] is None:
+            logger.error("❌ RESPOSTA DA MPESA SEM BODY!")
+            return C2BPaymentResponse(
+                transaction_id=None,
+                conversation_id=None,
+                third_party_reference=third_party_ref,
+                response_code="INS-999",
+                response_description="Resposta inválida da M-Pesa (sem body)"
+            )
+
+        body_data = resultado['body']
+        logger.info(f"📋 BODY CONTENT: {body_data}")
+
+        if resultado.get("success") and resultado.get("status_code") in [200, 201]:
+            # ✅ SUCESSO
+            if isinstance(body_data, dict):
+                dados_corpo = body_data
+            else:
+                # Tentar converter para dict se for string
+                try:
+                    if isinstance(body_data, str):
+                        import json
+                        dados_corpo = json.loads(body_data)
+                    else:
+                        dados_corpo = body_data
+                except:
+                    logger.error(f"❌ Não foi possível parsear o body: {body_data}")
+                    dados_corpo = {}
+
+            logger.info(f"✅ RESPOSTA DE SUCESSO DA MPESA: {dados_corpo}")
+            
             codigo_resposta = dados_corpo.get('output_ResponseCode', 'INS-0')
             info_codigo = get_mpesa_code_info(codigo_resposta)
+
+            logger.info(f"✅ Código de resposta: {codigo_resposta}")
+            logger.info(f"✅ Descrição: {info_codigo['message']}")
 
             return C2BPaymentResponse(
                 transaction_id=dados_corpo.get('output_TransactionID'),
@@ -153,11 +207,33 @@ class C2BService:
                 response_description=info_codigo["message"]
             )
         else:
-            dados_corpo = resultado.get("body", {})
+            # ✅ ERRO
+            logger.error(f"❌ RESPOSTA DE ERRO DA MPESA: {body_data}")
+            
+            if isinstance(body_data, dict):
+                dados_corpo = body_data
+            else:
+                # Tentar converter para dict se for string
+                try:
+                    if isinstance(body_data, str):
+                        import json
+                        dados_corpo = json.loads(body_data)
+                    else:
+                        dados_corpo = body_data
+                except:
+                    logger.error(f"❌ Não foi possível parsear o body de erro: {body_data}")
+                    dados_corpo = {}
+
             codigo_resposta = dados_corpo.get('output_ResponseCode', 'INS-999')
             info_codigo = get_mpesa_code_info(codigo_resposta)
+
             descricao_mpesa = dados_corpo.get('output_ResponseDesc')
             descricao_final = descricao_mpesa if descricao_mpesa else info_codigo["message"]
+
+            # ✅ LOG DO CÓDIGO DE ERRO ESPECÍFICO
+            logger.error(f"❌ CÓDIGO DE ERRO MPESA: {codigo_resposta}")
+            logger.error(f"❌ DESCRIÇÃO DO ERRO: {descricao_final}")
+            logger.error(f"❌ THIRD PARTY REF: {third_party_ref}")
 
             return C2BPaymentResponse(
                 transaction_id=dados_corpo.get('output_TransactionID'),
@@ -167,29 +243,30 @@ class C2BService:
                 response_description=descricao_final
             )
 
-    # ✅ MÉTODOS DE LOGGING ATUALIZADOS
+    # ✅ MÉTODOS DE LOGGING ASSÍNCRONO
 
     async def _registrar_inicio_transacao(self, dados_pagamento: C2BPaymentRequest, third_party_ref: str):
-        """Registra início da transação"""
+        """Registra início da transação de forma assíncrona"""
         try:
             dados_log = {
                 "transaction_reference": dados_pagamento.transaction_reference,
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,  # ✅ SEMPRE do .env
+                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,
                 "status": "pending",
                 "response_code": "PENDING",
                 "response_description": "Transação iniciada",
                 "api_key_used": "default"
             }
             await self.servico_db.registrar_transacao_async(dados_log)
+            logger.debug(f"📝 Log de início registrado: {dados_pagamento.transaction_reference}")
         except Exception as e:
-            logger.error(f"❌ Falha ao registrar início: {str(e)}")
+            logger.error(f"❌ Falha ao registrar início da transação: {str(e)}")
 
     async def _registrar_resultado_transacao(self, dados_pagamento: C2BPaymentRequest, third_party_ref: str,
                                              resultado_mpesa: Dict[str, Any], resposta: C2BPaymentResponse):
-        """Registra resultado da transação"""
+        """Registra resultado da transação de forma assíncrona"""
         try:
             status = "success" if resposta.response_code == "INS-0" else "failed"
 
@@ -198,7 +275,7 @@ class C2BService:
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,  # ✅ SEMPRE do .env
+                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,
                 "status": status,
                 "response_code": resposta.response_code,
                 "response_description": resposta.response_description,
@@ -207,19 +284,19 @@ class C2BService:
                 "api_key_used": "default"
             }
             await self.servico_db.registrar_transacao_async(dados_log)
-            logger.debug(f"📊 Resultado registrado: {dados_pagamento.transaction_reference} - {status}")
+            logger.debug(f"📊 Resultado registrado: {dados_pagamento.transaction_reference} - Status: {status}")
         except Exception as e:
-            logger.error(f"❌ Falha ao registrar resultado: {str(e)}")
+            logger.error(f"❌ Falha ao registrar resultado da transação: {str(e)}")
 
     async def _registrar_erro_transacao(self, dados_pagamento: C2BPaymentRequest, third_party_ref: str, erro: str):
-        """Registra erro na transação"""
+        """Registra erro na transação de forma assíncrona"""
         try:
             dados_log = {
                 "transaction_reference": dados_pagamento.transaction_reference,
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,  # ✅ SEMPRE do .env
+                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,
                 "status": "failed",
                 "response_code": "INS-999",
                 "response_description": f"Erro no serviço: {erro}",
@@ -228,7 +305,7 @@ class C2BService:
             await self.servico_db.registrar_transacao_async(dados_log)
             logger.debug(f"📊 Erro registrado: {dados_pagamento.transaction_reference}")
         except Exception as e:
-            logger.error(f"❌ Falha ao registrar erro: {str(e)}")
+            logger.error(f"❌ Falha ao registrar erro da transação: {str(e)}")
 
     async def obter_estatisticas_logging(self) -> Dict[str, Any]:
         """Retorna estatísticas do sistema de logging"""

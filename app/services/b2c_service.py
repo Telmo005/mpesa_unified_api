@@ -1,6 +1,7 @@
 # app/services/b2c_service.py
 """
 Serviço de pagamentos B2C M-Pesa Mozambique
+Versão atualizada seguindo padrão C2B - Shortcode sempre do .env
 """
 
 import asyncio
@@ -9,6 +10,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from app.core.database import get_supabase
+from app.core.config import settings  # ✅ IMPORT DAS CONFIGURAÇÕES
 from app.core.mpesa_codes import get_mpesa_code_info
 from app.models.schemas.b2c import B2CPaymentRequest, B2CPaymentResponse
 from app.services.database_service import DatabaseService
@@ -38,7 +40,7 @@ class B2CService:
         """Verifica se um third_party_reference é único"""
         unica = third_party_ref not in self._referencias_utilizadas
         if not unica:
-            logger.warning(f"🚫 B2C Third_party_reference duplicado detectado: {third_party_ref}")
+            logger.warning(f"🚫 B2C Third_party_reference duplicado: {third_party_ref}")
         else:
             logger.debug(f"✅ B2C Third_party_reference é único: {third_party_ref}")
         return unica
@@ -56,7 +58,7 @@ class B2CService:
                 logger.info(f"🎯 B2C Usando third_party_reference do cliente: {ref_cliente}")
                 return ref_cliente
             else:
-                logger.warning(f"🔄 B2C Referência do cliente é duplicada, gerando nova: {ref_cliente}")
+                logger.warning(f"🔄 B2C Referência duplicada, gerando nova: {ref_cliente}")
                 ref_gerada = self._gerar_third_party_reference(dados_pagamento.transaction_reference)
                 logger.info(f"🔄 B2C Duplicado substituído: {ref_cliente} → {ref_gerada}")
                 return ref_gerada
@@ -65,8 +67,8 @@ class B2CService:
             return self._gerar_third_party_reference(dados_pagamento.transaction_reference)
 
     async def process_payment(self, dados_pagamento: B2CPaymentRequest) -> B2CPaymentResponse:
-        """Processa pagamento B2C"""
-        logger.info(f"🔄 Processando B2C: {dados_pagamento.transaction_reference}")
+        """Processa pagamento B2C - versão atualizada"""
+        logger.info(f"🔄 PROCESSANDO B2C: {dados_pagamento.transaction_reference}")
 
         try:
             third_party_ref = self._obter_third_party_reference(dados_pagamento)
@@ -76,31 +78,43 @@ class B2CService:
                 third_party_ref=third_party_ref
             )
 
+            # ✅ PAYLOAD ATUALIZADO: Shortcode SEMPRE do .env
             payload_mpesa = {
                 "input_TransactionReference": dados_pagamento.transaction_reference,
                 "input_CustomerMSISDN": dados_pagamento.customer_msisdn,
                 "input_Amount": str(dados_pagamento.amount),
                 "input_ThirdPartyReference": third_party_ref,
-                "input_ServiceProviderCode": dados_pagamento.service_provider_code or "900579"
+                "input_ServiceProviderCode": settings.MPESA_SERVICE_PROVIDER_CODE  # ✅ SEMPRE do .env
             }
 
-            logger.info(f"📤 Enviando B2C para M-Pesa - Transação: {dados_pagamento.transaction_reference}, ThirdParty: {third_party_ref}")
+            logger.info(f"📤 ENVIANDO B2C PARA MPESA:")
+            logger.info(f"Shortcode: {settings.MPESA_SERVICE_PROVIDER_CODE}")
+            logger.info(f"Transaction Ref: {dados_pagamento.transaction_reference}")
+            logger.info(f"ThirdParty Ref: {third_party_ref}")
+            logger.info(f"Customer: {dados_pagamento.customer_msisdn}")
+            logger.info(f"Amount: {dados_pagamento.amount}")
 
             asyncio.create_task(self._registrar_inicio_transacao(dados_pagamento, third_party_ref))
 
             resultado = self.mpesa_client.execute_request(self.endpoint, payload_mpesa, "b2c")
 
-            logger.info(f"📥 Resposta B2C M-Pesa: {resultado['status_code']}")
+            logger.info(f"📥 RESPOSTA BRUTA B2C:")
+            logger.info(f"Status Code: {resultado.get('status_code')}")
+            logger.info(f"Success Flag: {resultado.get('success')}")
 
             resposta = self._processar_resposta_mpesa(resultado, third_party_ref)
 
             asyncio.create_task(
                 self._registrar_resultado_transacao(dados_pagamento, third_party_ref, resultado, resposta))
 
+            logger.info(f"🎯 RESPOSTA FINAL B2C:")
+            logger.info(f"Response Code: {resposta.output_ResponseCode}")
+            logger.info(f"Response Desc: {resposta.output_ResponseDesc}")
+
             return resposta
 
         except Exception as e:
-            logger.error(f"❌ Erro no processamento B2C: {str(e)}")
+            logger.error(f"❌ ERRO NO PROCESSAMENTO B2C: {str(e)}")
 
             ref_erro = third_party_ref if 'third_party_ref' in locals() else "b2c_ref_erro"
             asyncio.create_task(self._registrar_erro_transacao(dados_pagamento, ref_erro, str(e)))
@@ -114,11 +128,50 @@ class B2CService:
             )
 
     def _processar_resposta_mpesa(self, resultado: Dict[str, Any], third_party_ref: str) -> B2CPaymentResponse:
-        """Processa resposta M-Pesa B2C"""
-        if resultado["success"] and resultado["status_code"] == 200:
-            dados_corpo = resultado["body"]
+        """Processa resposta M-Pesa B2C com logging detalhado"""
+        # ✅ LOG DETALHADO DO RESULTADO
+        logger.info(f"🔍 PROCESSANDO RESPOSTA B2C DA MPESA:")
+        logger.info(f"Success flag: {resultado.get('success')}")
+        logger.info(f"Status code: {resultado.get('status_code')}")
+        logger.info(f"Body type: {type(resultado.get('body'))}")
+
+        # Verificar se temos um body válido
+        if 'body' not in resultado or resultado['body'] is None:
+            logger.error("❌ RESPOSTA B2C DA MPESA SEM BODY!")
+            return B2CPaymentResponse(
+                output_ConversationID=None,
+                output_TransactionID=None,
+                output_ResponseDesc="Resposta inválida da M-Pesa (sem body)",
+                output_ResponseCode="INS-999",
+                output_ThirdPartyReference=third_party_ref
+            )
+
+        body_data = resultado['body']
+        logger.info(f"📋 B2C BODY CONTENT: {body_data}")
+
+        if resultado.get("success") and resultado.get("status_code") in [200, 201]:
+            # ✅ SUCESSO
+            if isinstance(body_data, dict):
+                dados_corpo = body_data
+            else:
+                # Tentar converter para dict se for string
+                try:
+                    if isinstance(body_data, str):
+                        import json
+                        dados_corpo = json.loads(body_data)
+                    else:
+                        dados_corpo = body_data
+                except:
+                    logger.error(f"❌ Não foi possível parsear o body B2C: {body_data}")
+                    dados_corpo = {}
+
+            logger.info(f"✅ RESPOSTA DE SUCESSO B2C: {dados_corpo}")
+            
             codigo_resposta = dados_corpo.get('output_ResponseCode', 'INS-0')
             info_codigo = get_mpesa_code_info(codigo_resposta)
+
+            logger.info(f"✅ Código de resposta B2C: {codigo_resposta}")
+            logger.info(f"✅ Descrição B2C: {info_codigo['message']}")
 
             return B2CPaymentResponse(
                 output_ConversationID=dados_corpo.get('output_ConversationID'),
@@ -128,12 +181,32 @@ class B2CService:
                 output_ThirdPartyReference=third_party_ref
             )
         else:
-            dados_corpo = resultado.get("body", {})
+            # ✅ ERRO
+            logger.error(f"❌ RESPOSTA DE ERRO B2C: {body_data}")
+            
+            if isinstance(body_data, dict):
+                dados_corpo = body_data
+            else:
+                # Tentar converter para dict se for string
+                try:
+                    if isinstance(body_data, str):
+                        import json
+                        dados_corpo = json.loads(body_data)
+                    else:
+                        dados_corpo = body_data
+                except:
+                    logger.error(f"❌ Não foi possível parsear o body de erro B2C: {body_data}")
+                    dados_corpo = {}
+
             codigo_resposta = dados_corpo.get('output_ResponseCode', 'INS-999')
             info_codigo = get_mpesa_code_info(codigo_resposta)
 
             descricao_mpesa = dados_corpo.get('output_ResponseDesc')
             descricao_final = descricao_mpesa if descricao_mpesa else info_codigo["message"]
+
+            # ✅ LOG DO CÓDIGO DE ERRO ESPECÍFICO
+            logger.error(f"❌ CÓDIGO DE ERRO B2C: {codigo_resposta}")
+            logger.error(f"❌ DESCRIÇÃO DO ERRO B2C: {descricao_final}")
 
             return B2CPaymentResponse(
                 output_ConversationID=dados_corpo.get('output_ConversationID'),
@@ -143,6 +216,8 @@ class B2CService:
                 output_ThirdPartyReference=third_party_ref
             )
 
+    # ✅ MÉTODOS DE LOGGING ATUALIZADOS
+
     async def _registrar_inicio_transacao(self, dados_pagamento: B2CPaymentRequest, third_party_ref: str):
         """Registra início da transação B2C"""
         try:
@@ -151,7 +226,7 @@ class B2CService:
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": dados_pagamento.service_provider_code or "900579",
+                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,  # ✅ SEMPRE do .env
                 "status": "pending",
                 "response_code": "PENDING",
                 "response_description": "Transação B2C iniciada",
@@ -159,6 +234,7 @@ class B2CService:
                 "transaction_type": "B2C"
             }
             await self.servico_db.registrar_transacao_async(dados_log)
+            logger.debug(f"📝 B2C Log de início registrado: {dados_pagamento.transaction_reference}")
         except Exception as e:
             logger.error(f"❌ B2C Falha ao registrar início da transação: {str(e)}")
 
@@ -173,7 +249,7 @@ class B2CService:
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": dados_pagamento.service_provider_code or "900579",
+                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,  # ✅ SEMPRE do .env
                 "status": status,
                 "response_code": resposta.output_ResponseCode,
                 "response_description": resposta.output_ResponseDesc,
@@ -183,7 +259,7 @@ class B2CService:
                 "transaction_type": "B2C"
             }
             await self.servico_db.registrar_transacao_async(dados_log)
-            logger.debug(f"📊 B2C Resultado registrado para: {dados_pagamento.transaction_reference} - Status: {status}")
+            logger.debug(f"📊 B2C Resultado registrado: {dados_pagamento.transaction_reference} - Status: {status}")
         except Exception as e:
             logger.error(f"❌ B2C Falha ao registrar resultado da transação: {str(e)}")
 
@@ -195,7 +271,7 @@ class B2CService:
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": dados_pagamento.service_provider_code or "900579",
+                "service_provider_code": settings.MPESA_SERVICE_PROVIDER_CODE,  # ✅ SEMPRE do .env
                 "status": "failed",
                 "response_code": "INS-999",
                 "response_description": f"Erro B2C: {erro}",
@@ -203,6 +279,6 @@ class B2CService:
                 "transaction_type": "B2C"
             }
             await self.servico_db.registrar_transacao_async(dados_log)
-            logger.debug(f"📊 B2C Erro registrado para: {dados_pagamento.transaction_reference}")
+            logger.debug(f"📊 B2C Erro registrado: {dados_pagamento.transaction_reference}")
         except Exception as e:
             logger.error(f"❌ B2C Falha ao registrar erro da transação: {str(e)}")
