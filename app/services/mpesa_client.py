@@ -40,7 +40,7 @@ class MpesaClient:
             api_context.ssl = True
             api_context.address = settings.MPESA_API_HOST
             api_context.port = port
-            api_context.add_header('Origin', '*')
+            api_context.add_header('Origin', 'developer.mpesa.vm.co.mz')
 
             # ✅ CONFIGURE METHOD BASED ON TRANSACTION TYPE
             if transaction_type.lower() in ["query_customer", "query_transaction"]:

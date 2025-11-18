@@ -24,9 +24,9 @@ class QueryTransactionRequest(BaseModel):
         example="5C1400CVRO"
     )
     service_provider_code: Optional[str] = Field(
-        "171717",
+        "900579",
         description="Service provider code",
-        example="171717"
+        example="900579"
     )
 
 

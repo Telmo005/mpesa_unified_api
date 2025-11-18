@@ -41,7 +41,7 @@ async def reverse_transaction(
     - **security_credential**: Security credential from Vodacom - REQUIRED
     - **initiator_identifier**: Initiator identifier from Vodacom - REQUIRED
     - **third_party_reference**: Your unique reference - REQUIRED
-    - **service_provider_code**: Service provider code (default: 171717) - OPTIONAL
+    - **service_provider_code**: Service provider code (default: 900579) - OPTIONAL
     - **reversal_amount**: Amount to reverse (optional - full reversal if not provided) - OPTIONAL
     """
     try:

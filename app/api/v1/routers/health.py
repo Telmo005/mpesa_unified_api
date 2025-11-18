@@ -20,3 +20,6 @@ async def health_check():
         },
         message="API is healthy"
     )
+
+
+    

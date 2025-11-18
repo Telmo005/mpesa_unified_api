@@ -33,7 +33,7 @@ class ReversalService:
                 "input_SecurityCredential": reversal_data.security_credential,
                 "input_InitiatorIdentifier": reversal_data.initiator_identifier,
                 "input_ThirdPartyReference": reversal_data.third_party_reference,
-                "input_ServiceProviderCode": reversal_data.service_provider_code or "171717"
+                "input_ServiceProviderCode": reversal_data.service_provider_code or "900579"
             }
 
             # Adiciona reversal amount se fornecido
@@ -111,7 +111,7 @@ class ReversalService:
                 "third_party_reference": reversal_data.third_party_reference,
                 "customer_msisdn": "N/A",  # Reversão não tem MSISDN específico
                 "amount": reversal_data.reversal_amount or 0.0,
-                "service_provider_code": reversal_data.service_provider_code or "171717",
+                "service_provider_code": reversal_data.service_provider_code or "900579",
                 "status": "pending",
                 "response_code": "PENDING",
                 "response_description": f"Reversão iniciada para transação {reversal_data.transaction_id}",
@@ -134,7 +134,7 @@ class ReversalService:
                 "third_party_reference": reversal_data.third_party_reference,
                 "customer_msisdn": "N/A",  # Reversão não tem MSISDN específico
                 "amount": reversal_data.reversal_amount or 0.0,
-                "service_provider_code": reversal_data.service_provider_code or "171717",
+                "service_provider_code": reversal_data.service_provider_code or "900579",
                 "status": status,
                 "response_code": resposta.output_ResponseCode,
                 "response_description": resposta.output_ResponseDesc,
@@ -156,7 +156,7 @@ class ReversalService:
                 "third_party_reference": reversal_data.third_party_reference,
                 "customer_msisdn": "N/A",  # Reversão não tem MSISDN específico
                 "amount": reversal_data.reversal_amount or 0.0,
-                "service_provider_code": reversal_data.service_provider_code or "171717",
+                "service_provider_code": reversal_data.service_provider_code or "900579",
                 "status": "failed",
                 "response_code": "INS-999",
                 "response_description": f"Erro reversão: {erro}",

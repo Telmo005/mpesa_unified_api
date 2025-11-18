@@ -31,7 +31,7 @@ class QueryCustomerService:
             payload_mpesa = {
                 "input_CustomerMSISDN": query_data.customer_msisdn,
                 "input_ThirdPartyReference": query_data.third_party_reference,
-                "input_ServiceProviderCode": query_data.service_provider_code or "171717"
+                "input_ServiceProviderCode": query_data.service_provider_code or "900579"
             }
 
             logger.info(f"📤 Enviando consulta GET para M-Pesa - MSISDN: {query_data.customer_msisdn}")
@@ -105,7 +105,7 @@ class QueryCustomerService:
                 "third_party_reference": query_data.third_party_reference,
                 "customer_msisdn": query_data.customer_msisdn,
                 "amount": 0.0,  # Valor default para consultas
-                "service_provider_code": query_data.service_provider_code or "171717",
+                "service_provider_code": query_data.service_provider_code or "900579",
                 "status": "pending",
                 "response_code": "PENDING",
                 "response_description": "Consulta de nome iniciada",
@@ -128,7 +128,7 @@ class QueryCustomerService:
                 "third_party_reference": query_data.third_party_reference,
                 "customer_msisdn": query_data.customer_msisdn,
                 "amount": 0.0,  # Valor default para consultas
-                "service_provider_code": query_data.service_provider_code or "171717",
+                "service_provider_code": query_data.service_provider_code or "900579",
                 "status": status,
                 "response_code": resposta.output_ResultCode,
                 "response_description": resposta.output_ResultDesc,
@@ -149,7 +149,7 @@ class QueryCustomerService:
                 "third_party_reference": query_data.third_party_reference,
                 "customer_msisdn": query_data.customer_msisdn,
                 "amount": 0.0,  # Valor default para consultas
-                "service_provider_code": query_data.service_provider_code or "171717",
+                "service_provider_code": query_data.service_provider_code or "900579",
                 "status": "failed",
                 "response_code": "INS-999",
                 "response_description": f"Erro consulta: {erro}",

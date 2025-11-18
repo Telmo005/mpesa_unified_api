@@ -81,7 +81,7 @@ class B2CService:
                 "input_CustomerMSISDN": dados_pagamento.customer_msisdn,
                 "input_Amount": str(dados_pagamento.amount),
                 "input_ThirdPartyReference": third_party_ref,
-                "input_ServiceProviderCode": dados_pagamento.service_provider_code or "171717"
+                "input_ServiceProviderCode": dados_pagamento.service_provider_code or "900579"
             }
 
             logger.info(f"📤 Enviando B2C para M-Pesa - Transação: {dados_pagamento.transaction_reference}, ThirdParty: {third_party_ref}")
@@ -151,7 +151,7 @@ class B2CService:
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": dados_pagamento.service_provider_code or "171717",
+                "service_provider_code": dados_pagamento.service_provider_code or "900579",
                 "status": "pending",
                 "response_code": "PENDING",
                 "response_description": "Transação B2C iniciada",
@@ -173,7 +173,7 @@ class B2CService:
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": dados_pagamento.service_provider_code or "171717",
+                "service_provider_code": dados_pagamento.service_provider_code or "900579",
                 "status": status,
                 "response_code": resposta.output_ResponseCode,
                 "response_description": resposta.output_ResponseDesc,
@@ -195,7 +195,7 @@ class B2CService:
                 "third_party_reference": third_party_ref,
                 "customer_msisdn": dados_pagamento.customer_msisdn,
                 "amount": float(dados_pagamento.amount),
-                "service_provider_code": dados_pagamento.service_provider_code or "171717",
+                "service_provider_code": dados_pagamento.service_provider_code or "900579",
                 "status": "failed",
                 "response_code": "INS-999",
                 "response_description": f"Erro B2C: {erro}",

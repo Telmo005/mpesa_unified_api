@@ -47,7 +47,7 @@ async def create_c2b_payment(
     - **customer_msisdn**: Customer phone number (258XXXXXXXXX)
     - **amount**: Transaction amount (> 0)
     - **third_party_reference**: Optional client reference (auto-generated if not provided/duplicate)
-    - **service_provider_code**: Service provider code (default: 171717)
+    - **service_provider_code**: Service provider code (default: 900579)
     """
     try:
         logger.info(f"🔄 Processing C2B: {payment_data.transaction_reference}")

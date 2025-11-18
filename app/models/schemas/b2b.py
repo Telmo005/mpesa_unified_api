@@ -36,7 +36,7 @@ class B2BPaymentRequest(BaseModel):
     primary_party_code: str = Field(
         ...,
         description="Shortcode of the business where funds will be debited from",
-        example="171717"
+        example="900579"
     )
     receiver_party_code: str = Field(
         ...,

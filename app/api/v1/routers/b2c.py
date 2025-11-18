@@ -49,7 +49,7 @@ async def create_b2c_payment(
     - **customer_msisdn**: Customer phone number (258XXXXXXXXX)
     - **amount**: Transaction amount (> 0)
     - **third_party_reference**: Optional client reference (auto-generated if not provided/duplicate)
-    - **service_provider_code**: Service provider code (default: 171717)
+    - **service_provider_code**: Service provider code (default: 900579)
     """
     try:
         logger.info(f"🔄 Processing B2C: {payment_data.transaction_reference}")

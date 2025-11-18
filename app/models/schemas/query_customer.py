@@ -25,9 +25,9 @@ class QueryCustomerRequest(BaseModel):
         example="QUERY_REF_001"
     )
     service_provider_code: Optional[str] = Field(
-        "171717",
+        "900579",
         description="Service provider code",
-        example="171717"
+        example="900579"
     )
 
     @validator('customer_msisdn')

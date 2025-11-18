@@ -35,7 +35,7 @@ async def query_transaction_status(
                                            example="QUERY_TXN_001"),
         query_reference: str = Query(..., description="Transaction ID, ThirdPartyReference, or Conversation ID",
                                      example="5C1400CVRO"),
-        service_provider_code: str = Query("171717", description="Service provider code", example="171717"),
+        service_provider_code: str = Query("900579", description="Service provider code", example="900579"),
         api_key: str = Depends(validate_api_key)
 ) -> APIResponse[QueryTransactionResponse]:
     """
@@ -43,7 +43,7 @@ async def query_transaction_status(
 
     - **third_party_reference**: Your unique reference for this query - REQUIRED
     - **query_reference**: Transaction ID, ThirdPartyReference, or Conversation ID - REQUIRED
-    - **service_provider_code**: Service provider code (default: 171717) - OPTIONAL
+    - **service_provider_code**: Service provider code (default: 900579) - OPTIONAL
     """
     try:
         logger.info(f"🔍 Processing transaction query: {query_reference}")

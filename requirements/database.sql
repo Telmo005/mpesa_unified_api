@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS mpesa_transactions (
     -- Dados da transação
     customer_msisdn TEXT NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    service_provider_code TEXT DEFAULT '171717',
+    service_provider_code TEXT DEFAULT '900579',
 
     -- Resposta M-Pesa
     response_code TEXT NOT NULL,

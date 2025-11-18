@@ -31,7 +31,7 @@ router = APIRouter()
 async def query_customer_name(
     customer_msisdn: str = Query(..., description="Customer phone number in format 258XXXXXXXXX", example="258843330333"),
     third_party_reference: str = Query(..., description="Unique reference of the third party system", example="QUERY_REF_001"),
-    service_provider_code: str = Query("171717", description="Service provider code", example="171717"),
+    service_provider_code: str = Query("900579", description="Service provider code", example="900579"),
     api_key: str = Depends(validate_api_key)
 ) -> APIResponse[QueryCustomerResponse]:
     """
@@ -39,7 +39,7 @@ async def query_customer_name(
 
     - **customer_msisdn**: Customer phone number (258XXXXXXXXX) - REQUIRED
     - **third_party_reference**: Unique reference for tracking - REQUIRED
-    - **service_provider_code**: Service provider code (default: 171717) - OPTIONAL
+    - **service_provider_code**: Service provider code (default: 900579) - OPTIONAL
     """
     try:
         logger.info(f"🔍 Processing query: {customer_msisdn}")

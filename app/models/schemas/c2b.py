@@ -42,11 +42,8 @@ class C2BPaymentRequest(BaseModel):
         """,
         example="INVOICE_2024_8596"
     )
-    service_provider_code: Optional[str] = Field(
-        "171717",
-        description="Service provider code",
-        example="171717"
-    )
+    # ✅ REMOVIDO: service_provider_code não é mais necessário no request
+    # O shortcode sempre virá do .env
 
     @validator('customer_msisdn')
     def validate_msisdn(cls, v):

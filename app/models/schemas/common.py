@@ -22,7 +22,7 @@ class TransactionQuery(BaseModel):
     service_provider_code: str = Field(
         ...,
         description="Código do provedor de serviço",
-        example="171717"
+        example="900579"
     )
     third_party_reference: str = Field(
         ...,
@@ -68,7 +68,7 @@ class ReversalRequest(BaseModel):
     service_provider_code: str = Field(
         ...,
         description="Código do provedor de serviço",
-        example="171717"
+        example="900579"
     )
     reversal_reason: str = Field(
         ...,

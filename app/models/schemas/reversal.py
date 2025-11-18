@@ -34,9 +34,9 @@ class ReversalRequest(BaseModel):
         example="REVERSAL_001"
     )
     service_provider_code: Optional[str] = Field(
-        "171717",
+        "900579",
         description="Service provider code",
-        example="171717"
+        example="900579"
     )
     reversal_amount: Optional[float] = Field(
         None,
